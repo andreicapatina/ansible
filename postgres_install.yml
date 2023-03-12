@@ -1,0 +1,41 @@
+---
+- name: Postgre SQL Database installation and configuration
+  hosts: db-server
+  become: true
+  become_user: root
+  vars:
+    postgres_version: "14"
+    distro: "bullseye"
+  tasks:
+  - name: Add key for Postgres repo
+    apt_key: url=https://www.postgresql.org/media/keys/ACCC4CF8.asc state=present
+
+  - name: Add Postgres repo to sources list
+    apt_repository: repo='deb http://apt.postgresql.org/pub/repos/apt {{ distro }}-pgdg main' state=present
+
+  - name: Install PostgreSQL and client
+    apt:
+      name: ['postgresql-{{ postgres_version }}',
+             'postgresql-client-{{postgres_version }}'] 
+      state: present
+
+  - name: Allow remote connection to PostgreSQL database
+    copy:
+      src: /home/admin/middleware/stack/ansible/playbooks/postgresql-setup/pg_hba.conf
+      dest: /var/lib/pgsql/{{ postgres_version }}/data/
+
+  - name: Allow PostgreSQL to listen on all interfaces
+    copy:
+      src: /home/admin/middleware/stack/ansible/playbooks/postgresql-setup/postgresql.conf
+      dest: /var/lib/pgsql/{{ postgres_version }}/data/
+
+  - name: Start the database service
+    service:
+      name: postgresql-{{ postgres_version }}
+      state: started
+
+  - name: Allow PostgreSQL database service
+    firewalld:
+      service: postgresql
+      permanent: yes
+      state: enabled
